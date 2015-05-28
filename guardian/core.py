@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from itertools import chain
 
+from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 
@@ -85,11 +86,11 @@ class ObjectPermissionChecker(object):
             else:
                 group_filters['%s__content_object' % group_rel_name] = obj
 
-            if self.user and self.user.is_superuser:
-                perms = list(chain(*Permission.objects
-                    .filter(content_type=ctype)
-                    .values_list("codename")))
-            elif self.user:
+            #if self.user and self.user.is_superuser:
+            #    perms = list(chain(*Permission.objects
+            #        .filter(content_type=ctype)
+            #        .values_list("codename")))
+            if self.user:
                 model = get_user_obj_perms_model(obj)
                 related_name = model.permission.field.related_query_name()
                 user_filters = {'%s__user' % related_name: self.user}
@@ -107,7 +108,15 @@ class ObjectPermissionChecker(object):
                 user_perms = user_perms_qs.values_list("codename", flat=True)
                 group_perms_qs = perms_qs.filter(**group_filters)
                 group_perms = group_perms_qs.values_list("codename", flat=True)
-                perms = list(set(chain(user_perms, group_perms)))
+                set_chain = set(chain(user_perms, group_perms))
+                if self.user.is_superuser:
+                    editable_perms = getattr(settings, "SUPERUSERS_EDITABLE_PERMS", [])
+                    all_perms_without_editable = set(chain(*Permission.objects.filter(content_type=ctype)
+                    .exclude(codename__in=editable_perms)
+                    .values_list("codename")))
+                    perms = list(all_perms_without_editable | set_chain)
+                else:
+                    perms = list(set_chain)
             else:
                 perms = list(set(chain(*Permission.objects
                     .filter(content_type=ctype)
