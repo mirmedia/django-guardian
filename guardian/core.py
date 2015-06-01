@@ -86,10 +86,6 @@ class ObjectPermissionChecker(object):
             else:
                 group_filters['%s__content_object' % group_rel_name] = obj
 
-            #if self.user and self.user.is_superuser:
-            #    perms = list(chain(*Permission.objects
-            #        .filter(content_type=ctype)
-            #        .values_list("codename")))
             if self.user:
                 model = get_user_obj_perms_model(obj)
                 related_name = model.permission.field.related_query_name()
